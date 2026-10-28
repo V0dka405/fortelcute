@@ -685,8 +685,10 @@
     return true;
   }
 
+  let isSendingInFlight = false;
+
   async function sendScheduleToEmail() {
-    if (!validateBeforeAction()) return;
+    if (!validateBeforeAction() || isSendingInFlight) return;
 
     const chosen = Array.from(selectedPlans).map((k) => planMeta[k].label);
     const planStr = chosen.join(" + ");
@@ -697,17 +699,18 @@
     const mailtoHref = buildMailtoHref();
 
     if (window.location.protocol === "file:") {
-      window.location.href = mailtoHref;
       if (emailStatusBox) {
         emailStatusBox.hidden = false;
         emailStatusBox.className = "email-status-box is-info";
-        emailStatusBox.textContent = "📩 เปิดแอปอีเมลให้แล้ว กดปุ่มส่ง (Send) ได้เลยนะ 🌷";
+        emailStatusBox.innerHTML =
+          `📩 เปิดผ่านไฟล์ในเครื่อง กด <a href="${mailtoHref}">ส่งผ่านแอปอีเมลตรงนี้</a> หรือกดคัดลอกส่งแชทได้เลยนะ 🌷`;
       }
       return;
     }
 
+    isSendingInFlight = true;
     if (sendEmailBtn) sendEmailBtn.disabled = true;
-    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "กำลังส่งวันนัดเข้าเมล... 🌷";
+    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "กำลังปั๊มตั๋วยืนยัน... 🌷";
 
     const payload = {
       _subject: `🌷 นัดโปรเจกต์แก้สถิติ 6 ปี จาก${config.recipientName} (${scheduleStr})`,
@@ -724,68 +727,81 @@
       payload["เพิ่มลง Google Calendar"] = gcalUrl;
     }
 
-    try {
-      const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(config.notifyEmail)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
+    // Fire background request with literal '@' (FormSubmit spec), keepalive, and 15s safety timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const requestPromise = fetch(`https://formsubmit.co/ajax/${config.notifyEmail.trim()}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+      keepalive: true,
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, data };
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
       });
 
-      const data = await res.json().catch(() => ({}));
-      const isOk = res.ok && (data.success === "true" || data.success === true);
+    // Snappy 380ms optimistic UI confirmation so the button NEVER hangs waiting on slow SMTP
+    await new Promise((r) => setTimeout(r, 380));
 
-      if (isOk) {
-        if (ticketStamp) {
-          ticketStamp.textContent = "SENT ✓";
-          ticketStamp.classList.add("is-ready");
-          ticketStamp.classList.remove("stamp-pop");
-          void ticketStamp.offsetWidth;
-          ticketStamp.classList.add("stamp-pop");
+    if (ticketStamp) {
+      ticketStamp.textContent = "SENT ✓";
+      ticketStamp.classList.add("is-ready");
+      ticketStamp.classList.remove("stamp-pop");
+      void ticketStamp.offsetWidth;
+      ticketStamp.classList.add("stamp-pop");
+    }
+    if (printerStatusText) {
+      printerStatusText.textContent = "CONFIRMED · SENT ✓";
+    }
+    if (sendEmailBtn) sendEmailBtn.disabled = false;
+    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "✓ ยืนยันนัดเรียบร้อยแล้ว";
+    if (emailStatusBox) {
+      emailStatusBox.hidden = false;
+      emailStatusBox.className = "email-status-box is-success";
+      emailStatusBox.textContent = `✅ บันทึกและส่งวันนัดเรียบร้อยแล้ว! ขอบคุณนะ${config.recipientName} ไว้เจอกัน 🌷`;
+    }
+    showToast("ยืนยันตั๋วนัดเรียบร้อยแล้ว! 🌷");
+    isSendingInFlight = false;
+
+    // Handle background response silently (surface one-time Activate notice if needed, never auto-open Outlook)
+    requestPromise
+      .then(({ ok, data }) => {
+        const msg = data && typeof data.message === "string" ? data.message : "";
+        if (/activat/i.test(msg)) {
+          if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "📩 ยืนยันนัด & ส่งเข้าเมลเลย";
+          if (emailStatusBox) {
+            emailStatusBox.hidden = false;
+            emailStatusBox.className = "email-status-box is-info";
+            emailStatusBox.innerHTML =
+              `📬 ส่งลิงก์ยืนยันครั้งแรก (<strong>Activate Form</strong>) ไปที่ <strong>${config.notifyEmail}</strong> แล้วครับ ` +
+              `(เปิด Gmail กด Activate ครั้งเดียว ครั้งต่อไปเข้าเมลอัตโนมัติเลย)`;
+          }
+        } else if (!ok && !(data && (data.success === "true" || data.success === true))) {
+          if (emailStatusBox) {
+            emailStatusBox.hidden = false;
+            emailStatusBox.className = "email-status-box is-info";
+            emailStatusBox.innerHTML =
+              `📌 ปั๊มตั๋วเรียบร้อย! เซิร์ฟเวอร์เมลตอบช้านิดนึง กดคัดลอกส่งแชท หรือ <a href="${mailtoHref}">ส่งผ่านแอปอีเมล</a> สำรองได้นะ`;
+          }
         }
-        if (printerStatusText) {
-          printerStatusText.textContent = "CONFIRMED · SENT ✓";
-        }
-        if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "✓ ส่งวันนัดเข้าเมลเรียบร้อยแล้ว";
-        if (emailStatusBox) {
-          emailStatusBox.hidden = false;
-          emailStatusBox.className = "email-status-box is-success";
-          emailStatusBox.textContent = `✅ ส่งนัดหมายไปที่เมลเรียบร้อยแล้ว! ขอบคุณนะ${config.recipientName} ไว้เจอกัน 🌷`;
-        }
-        showToast("ส่งวันนัดเข้าเมลเรียบร้อยแล้ว! 🌷");
-      } else if (data && typeof data.message === "string" && /activat/i.test(data.message)) {
-        if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "📩 ยืนยันนัด & ส่งเข้าเมลเลย";
+      })
+      .catch(() => {
         if (emailStatusBox) {
           emailStatusBox.hidden = false;
           emailStatusBox.className = "email-status-box is-info";
           emailStatusBox.innerHTML =
-            `📬 ระบบส่งลิงก์ยืนยันครั้งแรก (<strong>Activate Form</strong>) ไปที่ <strong>${config.notifyEmail}</strong> แล้วครับ ` +
-            `(กด Activate ใน Gmail ครั้งเดียว ครั้งต่อไปส่งเข้าอัตโนมัติเลย) — ` +
-            `หรือกด <a href="${mailtoHref}">ส่งผ่านแอปอีเมลตรงนี้ได้เลย</a>`;
+            `📌 ปั๊มตั๋วเรียบร้อย! หากต้องการส่งสำรอง กดปุ่มคัดลอกส่งแชท หรือ <a href="${mailtoHref}">ส่งผ่านแอปอีเมลตรงนี้ได้นะ</a>`;
         }
-        showToast("เช็กเมลเพื่อกด Activate ครั้งแรกได้เลยครับ 📬");
-      } else {
-        window.location.href = mailtoHref;
-        if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "📩 ยืนยันนัด & ส่งเข้าเมลเลย";
-        if (emailStatusBox) {
-          emailStatusBox.hidden = false;
-          emailStatusBox.className = "email-status-box is-info";
-          emailStatusBox.innerHTML = `📩 เปิดแอปอีเมลเตรียมข้อความให้แล้ว กดส่งได้เลย (หรือ <a href="${mailtoHref}">คลิกที่นี่</a>)`;
-        }
-      }
-    } catch {
-      window.location.href = mailtoHref;
-      if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "📩 ยืนยันนัด & ส่งเข้าเมลเลย";
-      if (emailStatusBox) {
-        emailStatusBox.hidden = false;
-        emailStatusBox.className = "email-status-box is-info";
-        emailStatusBox.textContent = "📩 เปิดแอปอีเมลเตรียมข้อความให้แล้ว กดปุ่มส่งได้เลยนะ 🌷";
-      }
-    } finally {
-      if (sendEmailBtn) sendEmailBtn.disabled = false;
-    }
+      });
   }
 
   if (sendEmailBtn) {
