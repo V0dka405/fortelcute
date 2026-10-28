@@ -26,7 +26,72 @@
   <div class="paper-grain" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <div class="app-shell">
+  <!-- ==================== TICKET KIOSK IDENTITY GATE (04/06) ==================== -->
+  <div id="ticketGate" class="ticket-gate" role="dialog" aria-modal="true" aria-labelledby="gateQuestionTitle">
+    <div class="kiosk-shell">
+      <div class="kiosk-marquee">
+        <span class="kiosk-dot"></span>
+        <span>TICKET BOOTH #06 · ช่องออกตั๋วเฉพาะกิจ</span>
+      </div>
+
+      <!-- Two-part Perforated Admission Ticket -->
+      <div class="kiosk-ticket" id="kioskTicket">
+        <div class="kiosk-ticket-top" id="kioskTicketTop">
+          <div class="kiosk-ticket-head">
+            <span class="kiosk-admit-tag">🎟️ ADMIT ONE · ราคา 0฿</span>
+            <span class="kiosk-only-tag">เฉพาะเจ้าของชื่อ</span>
+          </div>
+
+          <h2 id="gateQuestionTitle" class="kiosk-title">ยืนยันตัวตนก่อน</h2>
+          <p class="kiosk-question">วันเกิดเทลวันไหน <span class="kiosk-ddmm-badge">(dd/mm)</span></p>
+
+          <!-- 4-Digit DD / MM Ticket Punch Slots -->
+          <div class="kiosk-pin-row" id="kioskPinRow" aria-label="รหัสวันเกิด 4 หลัก วันและเดือน">
+            <div class="pin-box" data-slot="0"><span class="pin-placeholder">d</span></div>
+            <div class="pin-box" data-slot="1"><span class="pin-placeholder">d</span></div>
+            <span class="pin-slash" aria-hidden="true">/</span>
+            <div class="pin-box" data-slot="2"><span class="pin-placeholder">m</span></div>
+            <div class="pin-box" data-slot="3"><span class="pin-placeholder">m</span></div>
+          </div>
+        </div>
+
+        <!-- Perforated Tear Line with Animated Scissors -->
+        <div class="kiosk-tear-line" aria-hidden="true">
+          <span class="kiosk-scissors" id="kioskScissors">✂️</span>
+        </div>
+
+        <!-- Detachable Ticket Stub -->
+        <div class="kiosk-ticket-stub" id="kioskTicketStub">
+          <span class="kiosk-status-msg" id="kioskStatusMsg">กดเลขวันเกิด 4 หลักเพื่อรับตั๋วเข้าชม</span>
+          <span class="kiosk-stub-stamp" id="kioskStubStamp">LOCKED</span>
+        </div>
+      </div>
+
+      <!-- Tactile Ticket Vending Machine Keypad -->
+      <div class="kiosk-controls" id="kioskControls">
+        <div class="kiosk-keypad" id="kioskKeypad" role="group" aria-label="แป้นกดตัวเลขซื้อตั๋ว">
+          <button type="button" class="kiosk-key" data-digit="1">1</button>
+          <button type="button" class="kiosk-key" data-digit="2">2</button>
+          <button type="button" class="kiosk-key" data-digit="3">3</button>
+          <button type="button" class="kiosk-key" data-digit="4">4</button>
+          <button type="button" class="kiosk-key" data-digit="5">5</button>
+          <button type="button" class="kiosk-key" data-digit="6">6</button>
+          <button type="button" class="kiosk-key" data-digit="7">7</button>
+          <button type="button" class="kiosk-key" data-digit="8">8</button>
+          <button type="button" class="kiosk-key" data-digit="9">9</button>
+          <button type="button" class="kiosk-key kiosk-key-fn" id="kioskClearBtn">ล้าง</button>
+          <button type="button" class="kiosk-key" data-digit="0">0</button>
+          <button type="button" class="kiosk-key kiosk-key-fn" id="kioskBackBtn" aria-label="ลบตัวเลข">⌫</button>
+        </div>
+
+        <button type="button" id="kioskBuyBtn" class="kiosk-buy-btn">
+          <span id="kioskBuyBtnLabel">🎟️ กดรับตั๋วเข้าชม (0 บาท)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell is-locked" id="appShell" aria-hidden="true">
     <!-- ==================== iOS STORY PROGRESS + TOP BAR ==================== -->
     <header class="topbar">
       <!-- Story-style thin progress segments (tap any segment to jump) -->

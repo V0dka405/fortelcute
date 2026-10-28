@@ -55,6 +55,197 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 2.5 Ticket Kiosk Identity Gate (Birthday DD/MM Check)
+  // ---------------------------------------------------------------------------
+  const ticketGate = document.getElementById("ticketGate");
+  const appShell = document.getElementById("appShell");
+  const kioskTicket = document.getElementById("kioskTicket");
+  const kioskControls = document.getElementById("kioskControls");
+  const kioskPinBoxes = Array.from(document.querySelectorAll("#kioskPinRow .pin-box"));
+  const kioskDigitBtns = Array.from(document.querySelectorAll(".kiosk-key[data-digit]"));
+  const kioskClearBtn = document.getElementById("kioskClearBtn");
+  const kioskBackBtn = document.getElementById("kioskBackBtn");
+  const kioskBuyBtn = document.getElementById("kioskBuyBtn");
+  const kioskBuyBtnLabel = document.getElementById("kioskBuyBtnLabel");
+  const kioskStatusMsg = document.getElementById("kioskStatusMsg");
+  const kioskStubStamp = document.getElementById("kioskStubStamp");
+
+  const expectedBirthdayPin = String(
+    rawConfig.passcode || [48, 52, 48, 54].map((code) => String.fromCharCode(code)).join("")
+  );
+  const slotPlaceholders = ["d", "d", "m", "m"];
+
+  let isGateUnlocked = !ticketGate;
+  let enteredPin = "";
+  let isGateBusy = false;
+  let wrongGateTries = 0;
+
+  function renderKioskPin() {
+    kioskPinBoxes.forEach((box, idx) => {
+      const ch = enteredPin[idx];
+      if (ch !== undefined) {
+        box.textContent = ch;
+        box.classList.add("is-filled");
+      } else {
+        box.innerHTML = `<span class="pin-placeholder">${slotPlaceholders[idx]}</span>`;
+        box.classList.remove("is-filled");
+      }
+    });
+
+    const ready = enteredPin.length === 4;
+    if (kioskBuyBtn) {
+      kioskBuyBtn.classList.toggle("is-ready", ready);
+    }
+    if (kioskBuyBtnLabel) {
+      kioskBuyBtnLabel.textContent = ready
+        ? "🎟️ กดออกตั๋วเข้าชมเลย →"
+        : "🎟️ กดรับตั๋วเข้าชม (0 บาท)";
+    }
+  }
+
+  function pushKioskDigit(digit) {
+    if (isGateUnlocked || isGateBusy) return;
+    if (enteredPin.length >= 4) return;
+    enteredPin += digit;
+    if (kioskTicket) kioskTicket.classList.remove("is-error");
+    if (kioskStatusMsg && enteredPin.length < 4) {
+      kioskStatusMsg.textContent = "กดเลขวันเกิด 4 หลักเพื่อรับตั๋วเข้าชม";
+    } else if (kioskStatusMsg && enteredPin.length === 4) {
+      kioskStatusMsg.textContent = "ครบ 4 หลักแล้ว กดปุ่มออกตั๋วด้านล่างได้เลย 👇";
+    }
+    if (kioskStubStamp) kioskStubStamp.textContent = enteredPin.length === 4 ? "READY" : "LOCKED";
+    renderKioskPin();
+  }
+
+  function popKioskDigit() {
+    if (isGateUnlocked || isGateBusy || enteredPin.length === 0) return;
+    enteredPin = enteredPin.slice(0, -1);
+    if (kioskTicket) kioskTicket.classList.remove("is-error");
+    if (kioskStatusMsg) kioskStatusMsg.textContent = "กดเลขวันเกิด 4 หลักเพื่อรับตั๋วเข้าชม";
+    if (kioskStubStamp) kioskStubStamp.textContent = "LOCKED";
+    renderKioskPin();
+  }
+
+  function clearKioskDigits() {
+    if (isGateUnlocked || isGateBusy) return;
+    enteredPin = "";
+    if (kioskTicket) kioskTicket.classList.remove("is-error");
+    if (kioskStatusMsg) kioskStatusMsg.textContent = "กดเลขวันเกิด 4 หลักเพื่อรับตั๋วเข้าชม";
+    if (kioskStubStamp) kioskStubStamp.textContent = "LOCKED";
+    renderKioskPin();
+  }
+
+  function attemptIssueTicket() {
+    if (isGateUnlocked || isGateBusy) return;
+
+    if (enteredPin.length < 4) {
+      if (kioskTicket) {
+        kioskTicket.classList.remove("is-error");
+        void kioskTicket.offsetWidth;
+        kioskTicket.classList.add("is-error");
+      }
+      if (kioskStatusMsg) {
+        kioskStatusMsg.textContent = "กดเลขวันเกิดให้ครบ 4 หลักก่อนน้า (dd/mm)";
+      }
+      showToast("กรอกวันเกิดให้ครบ 4 ตัวก่อนน้า 🎟️");
+      return;
+    }
+
+    if (enteredPin !== expectedBirthdayPin) {
+      wrongGateTries += 1;
+      isGateBusy = true;
+
+      if (kioskTicket) {
+        kioskTicket.classList.remove("is-error");
+        void kioskTicket.offsetWidth;
+        kioskTicket.classList.add("is-error");
+      }
+      if (kioskStubStamp) {
+        kioskStubStamp.textContent = "DENIED ✕";
+      }
+
+      const rejectLines = [
+        "ออกตั๋วไม่สำเร็จ! วันเกิดไม่ถูก เข้าไม่ได้น้า 👀",
+        `จำวันเกิด${config.recipientName}ผิดได้ไง ตัวปลอมปะเนี่ย 555`,
+        `ล็อกแน่นมาก เฉพาะเจ้าของวันเกิดถึงเข้าได้นะ 🔒`,
+      ];
+      if (kioskStatusMsg) {
+        kioskStatusMsg.textContent = rejectLines[Math.min(wrongGateTries - 1, rejectLines.length - 1)];
+      }
+      showToast("คำตอบไม่ถูก ออกตั๋วเข้าไม่ได้น้า 🔒");
+
+      setTimeout(() => {
+        enteredPin = "";
+        if (kioskTicket) kioskTicket.classList.remove("is-error");
+        if (kioskStubStamp) kioskStubStamp.textContent = "LOCKED";
+        renderKioskPin();
+        isGateBusy = false;
+      }, 720);
+      return;
+    }
+
+    // Correct Birthday (0406)! Play Ticket Stamp + Scissors Tear-Off + Gate Unlock Animation
+    isGateBusy = true;
+    if (kioskControls) kioskControls.classList.add("is-hiding");
+    if (kioskTicket) {
+      kioskTicket.classList.remove("is-error");
+      kioskTicket.classList.add("is-verified");
+    }
+    if (kioskStubStamp) {
+      kioskStubStamp.textContent = "ADMIT ONE ✓";
+    }
+    if (kioskStatusMsg) {
+      kioskStatusMsg.textContent = `✓ ตัวจริงเสียงจริง! กำลังฉีกตั๋วให้${config.recipientName}เข้างาน... 🌷`;
+    }
+
+    // Tear the perforated ticket stub with animated scissors
+    setTimeout(() => {
+      if (kioskTicket) kioskTicket.classList.add("is-tearing");
+    }, 420);
+
+    // Reveal Page 1 behind the torn admission ticket
+    setTimeout(() => {
+      isGateUnlocked = true;
+      if (appShell) {
+        appShell.classList.remove("is-locked");
+        appShell.removeAttribute("aria-hidden");
+      }
+      if (pages[0]) {
+        pages[0].classList.remove("anim-next");
+        void pages[0].offsetWidth;
+        pages[0].classList.add("anim-next");
+      }
+      if (ticketGate) {
+        ticketGate.classList.add("is-unlocking");
+      }
+    }, 1120);
+
+    setTimeout(() => {
+      if (ticketGate) {
+        ticketGate.hidden = true;
+      }
+      isGateBusy = false;
+    }, 1560);
+  }
+
+  kioskDigitBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.getAttribute("data-digit");
+      if (d !== null) pushKioskDigit(d);
+    });
+  });
+
+  if (kioskBackBtn) {
+    kioskBackBtn.addEventListener("click", popKioskDigit);
+  }
+  if (kioskClearBtn) {
+    kioskClearBtn.addEventListener("click", clearKioskDigits);
+  }
+  if (kioskBuyBtn) {
+    kioskBuyBtn.addEventListener("click", attemptIssueTicket);
+  }
+
+  // ---------------------------------------------------------------------------
   // 3. iPhone 6-Screen Story Deck + Swipe Gesture Controller
   // ---------------------------------------------------------------------------
   const pageStage = document.getElementById("pageStage");
@@ -147,6 +338,7 @@
   }
 
   function goToPage(targetIdx) {
+    if (!isGateUnlocked) return;
     if (targetIdx < 0 || targetIdx >= pages.length || targetIdx === currentPage) return;
 
     const goingForward = targetIdx > currentPage;
@@ -232,8 +424,30 @@
     );
   }
 
-  // Keyboard Left/Right support on Desktop
+  // Keyboard support on Desktop (Ticket Kiosk PIN when locked, Left/Right when unlocked)
   document.addEventListener("keydown", (e) => {
+    if (!isGateUnlocked) {
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        const keyBtn = document.querySelector(`.kiosk-key[data-digit="${e.key}"]`);
+        if (keyBtn) {
+          keyBtn.classList.add("is-pressed");
+          setTimeout(() => keyBtn.classList.remove("is-pressed"), 120);
+        }
+        pushKioskDigit(e.key);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        popKioskDigit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clearKioskDigits();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        attemptIssueTicket();
+      }
+      return;
+    }
+
     const tag = document.activeElement ? document.activeElement.tagName : "";
     if (tag === "INPUT" || tag === "TEXTAREA") return;
     const igModalEl = document.getElementById("igModal");
