@@ -457,43 +457,67 @@
           </div>
 
           <div class="ticket-wrapper">
-            <div class="ticket" id="ticketCard">
-              <div class="ticket-header">
-                <div>
-                  <span class="ticket-kicker">PROJECT TICKET // #06-YR</span>
-                  <h3 class="ticket-title">ใบรับทราบโปรเจกต์ (แบบไม่กดดัน)</h3>
+            <!-- Thermal Ticket Dispenser Slot -->
+            <div class="printer-machine" id="printerMachine">
+              <div class="printer-bezel">
+                <div class="printer-status">
+                  <span class="printer-led" id="printerLed" aria-hidden="true"></span>
+                  <span class="printer-status-text" id="printerStatusText">PRINTING TICKET...</span>
                 </div>
-                <span class="ticket-tulip">🌷</span>
+                <button type="button" id="reprintTicketBtn" class="printer-reprint-btn">
+                  🖨️ ปริ้นซ้ำ
+                </button>
               </div>
-
-              <div class="ticket-perforation" aria-hidden="true"></div>
-
-              <div class="ticket-rows">
-                <div class="ticket-row">
-                  <span class="t-label">ผู้ถือตั๋ว</span>
-                  <span class="t-val" id="ticketRecipient">เทล</span>
-                </div>
-                <div class="ticket-row">
-                  <span class="t-label">แผนที่เลือก</span>
-                  <span class="t-val highlight-val" id="ticketPlan">ยังไม่ได้จิ้มแผน</span>
-                </div>
-                <div class="ticket-row" id="ticketPlaceRow" hidden>
-                  <span class="t-label">พิกัดเสริม</span>
-                  <span class="t-val" id="ticketPlace">-</span>
-                </div>
-                <div class="ticket-row">
-                  <span class="t-label">วันนัด / เวลา</span>
-                  <span class="t-val" id="ticketTiming">ยังไม่ได้จิ้มวันที่</span>
-                </div>
-                <div class="ticket-row">
-                  <span class="t-label">เพลงแร็ป 🎧</span>
-                  <span class="t-val" id="ticketRap">รอเทลส่งมาป้ายยา</span>
-                </div>
+              <div class="printer-slot" aria-hidden="true">
+                <div class="printer-slot-opening"></div>
               </div>
+            </div>
 
-              <div class="ticket-footer">
-                <span class="from-line">จาก <strong id="senderNameDisplay">คนที่รู้จักเทลมา 6 ปี</strong></span>
-                <span class="ticket-stamp" id="ticketStamp">DRAFT</span>
+            <!-- Paper Feed Chute -->
+            <div class="printer-chute" id="printerChute">
+              <div class="printer-roller-shadow" aria-hidden="true"></div>
+
+              <div class="ticket" id="ticketCard">
+                <div class="ticket-header">
+                  <div>
+                    <span class="ticket-kicker">PROJECT TICKET // #06-YR</span>
+                    <h3 class="ticket-title">ใบรับทราบโปรเจกต์ (แบบไม่กดดัน)</h3>
+                  </div>
+                  <span class="ticket-tulip">🌷</span>
+                </div>
+
+                <div class="ticket-perforation" aria-hidden="true"></div>
+
+                <div class="ticket-rows">
+                  <div class="ticket-row">
+                    <span class="t-label">ผู้ถือตั๋ว</span>
+                    <span class="t-val" id="ticketRecipient">เทล</span>
+                  </div>
+                  <div class="ticket-row">
+                    <span class="t-label">แผนที่เลือก</span>
+                    <span class="t-val highlight-val" id="ticketPlan">ยังไม่ได้จิ้มแผน</span>
+                  </div>
+                  <div class="ticket-row" id="ticketPlaceRow" hidden>
+                    <span class="t-label">พิกัดเสริม</span>
+                    <span class="t-val" id="ticketPlace">-</span>
+                  </div>
+                  <div class="ticket-row">
+                    <span class="t-label">วันนัด / เวลา</span>
+                    <span class="t-val" id="ticketTiming">ยังไม่ได้จิ้มวันที่</span>
+                  </div>
+                  <div class="ticket-row">
+                    <span class="t-label">เพลงแร็ป 🎧</span>
+                    <span class="t-val" id="ticketRap">รอเทลส่งมาป้ายยา</span>
+                  </div>
+                </div>
+
+                <div class="ticket-footer">
+                  <div class="ticket-footer-meta">
+                    <span class="from-line">จาก <strong id="senderNameDisplay">คนที่รู้จักเทลมา 6 ปี</strong></span>
+                    <span class="ticket-barcode" aria-hidden="true"></span>
+                  </div>
+                  <span class="ticket-stamp" id="ticketStamp">DRAFT</span>
+                </div>
               </div>
             </div>
 

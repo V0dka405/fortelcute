@@ -1299,16 +1299,179 @@ mark.hl-sea {
 }
 
 /* ==========================================================================
-   PAGE 6: BOARDING-PASS TICKET & SEND ACTIONS
+   PAGE 6: THERMAL PRINTER DISPENSER, TICKET FEED & SEND ACTIONS
    ========================================================================== */
+.printer-machine {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(180deg, #2e2c28 0%, #1e1d1a 100%);
+  border: 1px solid #3f3c37;
+  border-radius: 16px 16px 11px 11px;
+  padding: 9px 11px 8px;
+  box-shadow: 0 10px 22px -10px rgba(31, 30, 28, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.printer-machine.is-printing {
+  animation: printerMotorHum 0.09s linear var(--print-delay, 0.14s) 13;
+}
+
+@keyframes printerMotorHum {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-0.6px, 0.4px);
+  }
+  75% {
+    transform: translate(0.6px, -0.4px);
+  }
+}
+
+.printer-bezel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  padding: 0 3px;
+}
+
+.printer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.printer-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #61b978;
+  box-shadow: 0 0 8px rgba(97, 185, 120, 0.75);
+  flex-shrink: 0;
+}
+
+.printer-machine.is-printing .printer-led {
+  background: #f5a646;
+  box-shadow: 0 0 9px rgba(245, 166, 70, 0.9);
+  animation: printerLedBlink 0.24s ease-in-out infinite alternate;
+}
+
+@keyframes printerLedBlink {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.printer-status-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #dcd6cb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.printer-reprint-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5efe6;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.printer-reprint-btn:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.printer-slot {
+  background: #12110f;
+  border-radius: 999px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.9);
+}
+
+.printer-slot-opening {
+  height: 4px;
+  border-radius: 999px;
+  background: #060605;
+}
+
+.printer-chute {
+  position: relative;
+  z-index: 4;
+  margin: -13px -4px 0;
+  padding: 0 10px 10px;
+  overflow: hidden;
+}
+
+.printer-roller-shadow {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 15px;
+  background: linear-gradient(180deg, rgba(16, 15, 13, 0.28) 0%, rgba(16, 15, 13, 0) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
 .ticket {
   position: relative;
   background: #ffffff;
   border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  border-top-width: 1px;
+  border-radius: 3px 3px var(--radius-lg) var(--radius-lg);
+  padding: 16px 18px 14px;
   box-shadow: var(--shadow-lift);
   overflow: hidden;
+  transform-origin: top center;
+  will-change: transform;
+}
+
+.printer-chute.is-printing .ticket {
+  animation: thermalTicketFeed 1.42s cubic-bezier(0.22, 1, 0.36, 1) var(--print-delay, 0.14s) both;
+}
+
+@keyframes thermalTicketFeed {
+  0% {
+    transform: translateY(-105%);
+  }
+  18% {
+    transform: translateY(-76%);
+  }
+  25% {
+    transform: translateY(-74%);
+  }
+  52% {
+    transform: translateY(-38%);
+  }
+  60% {
+    transform: translateY(-36%);
+  }
+  86% {
+    transform: translateY(-3%);
+  }
+  94% {
+    transform: translateY(3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .ticket-header {
@@ -1340,7 +1503,7 @@ mark.hl-sea {
 
 .ticket-perforation {
   position: relative;
-  margin: 12px -18px;
+  margin: 11px -18px;
   border-top: 2px dashed var(--border-subtle);
 }
 
@@ -1397,7 +1560,7 @@ mark.hl-sea {
 }
 
 .ticket-footer {
-  margin-top: 12px;
+  margin-top: 11px;
   padding-top: 10px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -1406,14 +1569,43 @@ mark.hl-sea {
   gap: 8px;
 }
 
+.ticket-footer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .from-line {
   font-family: var(--font-heading);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: var(--ink-secondary);
 }
 
 .from-line strong {
   color: var(--ink-primary);
+}
+
+.ticket-barcode {
+  display: block;
+  width: 118px;
+  height: 10px;
+  opacity: 0.42;
+  background: repeating-linear-gradient(
+    90deg,
+    #1f1e1c 0px,
+    #1f1e1c 2px,
+    transparent 2px,
+    transparent 4px,
+    #1f1e1c 4px,
+    #1f1e1c 5px,
+    transparent 5px,
+    transparent 8px,
+    #1f1e1c 8px,
+    #1f1e1c 11px,
+    transparent 11px,
+    transparent 13px
+  );
 }
 
 .ticket-stamp {
@@ -1426,6 +1618,30 @@ mark.hl-sea {
   border: 1.5px solid var(--border-strong);
   color: var(--ink-muted);
   transform: rotate(-3deg);
+  flex-shrink: 0;
+}
+
+.printer-chute.is-printing .ticket-stamp {
+  animation: ticketStampSlam 0.36s cubic-bezier(0.18, 1.35, 0.4, 1) calc(var(--print-delay, 0.14s) + 1.24s) both;
+}
+
+.ticket-stamp.stamp-pop {
+  animation: ticketStampSlam 0.36s cubic-bezier(0.18, 1.35, 0.4, 1) both;
+}
+
+@keyframes ticketStampSlam {
+  0% {
+    opacity: 0;
+    transform: scale(2.15) rotate(-14deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(0.93) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
 }
 
 .ticket-stamp.is-ready {
@@ -1435,7 +1651,7 @@ mark.hl-sea {
 }
 
 .ticket-primary-action {
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .btn {

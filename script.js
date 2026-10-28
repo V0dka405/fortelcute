@@ -102,6 +102,50 @@
     }
   }
 
+  const printerMachine = document.getElementById("printerMachine");
+  const printerChute = document.getElementById("printerChute");
+  const printerStatusText = document.getElementById("printerStatusText");
+  const reprintTicketBtn = document.getElementById("reprintTicketBtn");
+  let printDoneTimer = null;
+
+  function triggerTicketPrint(isManualReprint = false) {
+    if (!printerMachine || !printerChute) return;
+
+    const delaySec = isManualReprint ? "0.02s" : "0.14s";
+    const totalMs = isManualReprint ? 1480 : 1600;
+
+    printerMachine.style.setProperty("--print-delay", delaySec);
+    printerChute.style.setProperty("--print-delay", delaySec);
+
+    printerMachine.classList.remove("is-printing");
+    printerChute.classList.remove("is-printing");
+    const stampEl = document.getElementById("ticketStamp");
+    if (stampEl) stampEl.classList.remove("stamp-pop");
+
+    void printerChute.offsetWidth;
+
+    if (printerStatusText) {
+      printerStatusText.textContent = "PRINTING TICKET...";
+    }
+    printerMachine.classList.add("is-printing");
+    printerChute.classList.add("is-printing");
+
+    clearTimeout(printDoneTimer);
+    printDoneTimer = setTimeout(() => {
+      printerMachine.classList.remove("is-printing");
+      if (printerStatusText) {
+        const isSent = stampEl && stampEl.textContent === "SENT ✓";
+        printerStatusText.textContent = isSent ? "CONFIRMED · SENT ✓" : "PRINTED · #06-YR ✓";
+      }
+    }, totalMs);
+  }
+
+  if (reprintTicketBtn) {
+    reprintTicketBtn.addEventListener("click", () => {
+      triggerTicketPrint(true);
+    });
+  }
+
   function goToPage(targetIdx) {
     if (targetIdx < 0 || targetIdx >= pages.length || targetIdx === currentPage) return;
 
@@ -124,6 +168,10 @@
 
     if (pageStage) pageStage.scrollTop = 0;
     updatePagerUI();
+
+    if (currentPage === pages.length - 1) {
+      triggerTicketPrint(false);
+    }
   }
 
   if (prevPageBtn) {
@@ -693,6 +741,12 @@
         if (ticketStamp) {
           ticketStamp.textContent = "SENT ✓";
           ticketStamp.classList.add("is-ready");
+          ticketStamp.classList.remove("stamp-pop");
+          void ticketStamp.offsetWidth;
+          ticketStamp.classList.add("stamp-pop");
+        }
+        if (printerStatusText) {
+          printerStatusText.textContent = "CONFIRMED · SENT ✓";
         }
         if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "✓ ส่งวันนัดเข้าเมลเรียบร้อยแล้ว";
         if (emailStatusBox) {
