@@ -325,8 +325,8 @@
     printDoneTimer = setTimeout(() => {
       printerMachine.classList.remove("is-printing");
       if (printerStatusText) {
-        const isSent = stampEl && stampEl.textContent === "SENT ✓";
-        printerStatusText.textContent = isSent ? "CONFIRMED · SENT ✓" : "PRINTED · #06-YR ✓";
+        const isBooked = stampEl && stampEl.textContent === "BOOKED ✓";
+        printerStatusText.textContent = isBooked ? "BOOKED · #06-YR ✓" : "PRINTED · #06-YR ✓";
       }
     }, totalMs);
   }
@@ -604,7 +604,6 @@
   const timeSlotChips = document.querySelectorAll("#timeSlotChips .chip");
   const rapInput = document.getElementById("rapInput");
   const vinylDisc = document.getElementById("vinylDisc");
-  const directMailtoLink = document.getElementById("directMailtoLink");
 
   if (dateInput) {
     const now = new Date();
@@ -711,13 +710,6 @@
     return lines.join("\n");
   }
 
-  function buildMailtoHref() {
-    const scheduleStr = getScheduleForMessage();
-    const subject = `🌷 นัดโปรเจกต์แก้สถิติ 6 ปี — จาก${config.recipientName} (${scheduleStr})`;
-    const body = buildReplyMessage();
-    return `mailto:${config.notifyEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }
-
   function syncUI() {
     if (modePickDateBtn && modeLaterBtn && datePickerPanel && laterPanel) {
       const isDateMode = scheduleMode === "date";
@@ -742,13 +734,13 @@
 
     if (chosenLabels.length > 0) {
       if (ticketPlan) ticketPlan.textContent = chosenLabels.join(" + ");
-      if (ticketStamp && ticketStamp.textContent !== "SENT ✓") {
+      if (ticketStamp && ticketStamp.textContent !== "BOOKED ✓") {
         ticketStamp.textContent = hasReadySchedule ? "READY 🌷" : "PICK DATE";
         ticketStamp.classList.toggle("is-ready", hasReadySchedule);
       }
     } else {
       if (ticketPlan) ticketPlan.textContent = "ยังไม่ได้จิ้มแผน";
-      if (ticketStamp && ticketStamp.textContent !== "SENT ✓") {
+      if (ticketStamp && ticketStamp.textContent !== "BOOKED ✓") {
         ticketStamp.textContent = "DRAFT";
         ticketStamp.classList.remove("is-ready");
       }
@@ -795,10 +787,6 @@
     if (vinylDisc) {
       const isFocused = document.activeElement === rapInput;
       vinylDisc.classList.toggle("is-spinning", Boolean(rapVal) || isFocused);
-    }
-
-    if (directMailtoLink) {
-      directMailtoLink.href = buildMailtoHref();
     }
   }
 
@@ -910,27 +898,16 @@
     const customPlace = placeInput ? placeInput.value.trim() : "";
     const rapVal = rapInput ? rapInput.value.trim() : "";
     const gcalUrl = buildGoogleCalendarUrl(planStr, customPlace, rapVal);
-    const mailtoHref = buildMailtoHref();
-
-    if (window.location.protocol === "file:") {
-      if (emailStatusBox) {
-        emailStatusBox.hidden = false;
-        emailStatusBox.className = "email-status-box is-info";
-        emailStatusBox.innerHTML =
-          `📩 เปิดผ่านไฟล์ในเครื่อง กด <a href="${mailtoHref}">ส่งผ่านแอปอีเมลตรงนี้</a> หรือกดคัดลอกส่งแชทได้เลยนะ 🌷`;
-      }
-      return;
-    }
 
     isSendingInFlight = true;
     if (sendEmailBtn) sendEmailBtn.disabled = true;
-    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "กำลังปั๊มตั๋วยืนยัน... 🌷";
+    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "กำลังบันทึกวันนัด... 🌷";
 
     const payload = {
-      _subject: `🌷 นัดโปรเจกต์แก้สถิติ 6 ปี จาก${config.recipientName} (${scheduleStr})`,
+      _subject: `🌷 มีนัดใหม่จาก${config.recipientName}! (${scheduleStr})`,
       _template: "table",
       _captcha: "false",
-      ผู้ตอบ: config.recipientName,
+      ผู้ทำนัด: config.recipientName,
       แผนที่เลือก: planStr,
       "วันนัด / ช่วงเวลา": scheduleStr,
       "พิกัด/ร้านที่อยากไป": customPlace || "ไม่ได้ระบุเพิ่ม (ตามไอเดียในเว็บ)",
@@ -941,81 +918,62 @@
       payload["เพิ่มลง Google Calendar"] = gcalUrl;
     }
 
-    // Fire background request with literal '@' (FormSubmit spec), keepalive, and 15s safety timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    // Silent background dispatch straight to owner's email (zero visitor email / mail app needed)
+    if (window.location.protocol !== "file:") {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const requestPromise = fetch(`https://formsubmit.co/ajax/${config.notifyEmail.trim()}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-      keepalive: true,
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        return { ok: res.ok, data };
+      fetch(`https://formsubmit.co/ajax/${config.notifyEmail.trim()}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        referrerPolicy: "origin",
+        body: JSON.stringify(payload),
+        keepalive: true,
+        signal: controller.signal,
       })
-      .finally(() => {
-        clearTimeout(timeoutId);
-      });
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          const msg = data && typeof data.message === "string" ? data.message : "";
+          if (/activat/i.test(msg) && emailStatusBox) {
+            emailStatusBox.hidden = false;
+            emailStatusBox.className = "email-status-box is-info";
+            emailStatusBox.innerHTML =
+              `📬 <strong>สำหรับเจ้าของเว็บ (ตั้งค่าครั้งแรกครั้งเดียว):</strong> ระบบส่งปุ่ม <strong>Activate Form</strong> ไปที่ <strong>${config.notifyEmail}</strong> แล้ว กดยืนยันใน Gmail 1 ครั้ง ต่อไปเวลากดทำนัดจะเข้าเมลทันทีโดยไม่ต้องใช้เมลคนกดเลยครับ`;
+          }
+        })
+        .catch(() => {
+          // Silent fallback: ticket is already booked on screen without bothering the visitor
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+        });
+    }
 
-    // Snappy 380ms optimistic UI confirmation so the button NEVER hangs waiting on slow SMTP
+    // Snappy 380ms booking confirmation — pure appointment booking UX
     await new Promise((r) => setTimeout(r, 380));
 
     if (ticketStamp) {
-      ticketStamp.textContent = "SENT ✓";
+      ticketStamp.textContent = "BOOKED ✓";
       ticketStamp.classList.add("is-ready");
       ticketStamp.classList.remove("stamp-pop");
       void ticketStamp.offsetWidth;
       ticketStamp.classList.add("stamp-pop");
     }
     if (printerStatusText) {
-      printerStatusText.textContent = "CONFIRMED · SENT ✓";
+      printerStatusText.textContent = "BOOKED · #06-YR ✓";
     }
     if (sendEmailBtn) sendEmailBtn.disabled = false;
-    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "✓ ยืนยันนัดเรียบร้อยแล้ว";
+    if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "✓ ลงนัดเรียบร้อยแล้ว";
     if (emailStatusBox) {
       emailStatusBox.hidden = false;
       emailStatusBox.className = "email-status-box is-success";
-      emailStatusBox.textContent = `✅ บันทึกและส่งวันนัดเรียบร้อยแล้ว! ขอบคุณนะ${config.recipientName} ไว้เจอกัน 🌷`;
+      emailStatusBox.textContent = `✅ ลงนัดไว้ให้เรียบร้อยแล้ว! ขอบคุณนะ${config.recipientName} ไว้เจอกัน 🌷`;
     }
-    showToast("ยืนยันตั๋วนัดเรียบร้อยแล้ว! 🌷");
+    showToast("ลงนัดเรียบร้อยแล้ว! 🎟️🌷");
     isSendingInFlight = false;
-
-    // Handle background response silently (surface one-time Activate notice if needed, never auto-open Outlook)
-    requestPromise
-      .then(({ ok, data }) => {
-        const msg = data && typeof data.message === "string" ? data.message : "";
-        if (/activat/i.test(msg)) {
-          if (sendEmailBtnLabel) sendEmailBtnLabel.textContent = "📩 ยืนยันนัด & ส่งเข้าเมลเลย";
-          if (emailStatusBox) {
-            emailStatusBox.hidden = false;
-            emailStatusBox.className = "email-status-box is-info";
-            emailStatusBox.innerHTML =
-              `📬 ส่งลิงก์ยืนยันครั้งแรก (<strong>Activate Form</strong>) ไปที่ <strong>${config.notifyEmail}</strong> แล้วครับ ` +
-              `(เปิด Gmail กด Activate ครั้งเดียว ครั้งต่อไปเข้าเมลอัตโนมัติเลย)`;
-          }
-        } else if (!ok && !(data && (data.success === "true" || data.success === true))) {
-          if (emailStatusBox) {
-            emailStatusBox.hidden = false;
-            emailStatusBox.className = "email-status-box is-info";
-            emailStatusBox.innerHTML =
-              `📌 ปั๊มตั๋วเรียบร้อย! เซิร์ฟเวอร์เมลตอบช้านิดนึง กดคัดลอกส่งแชท หรือ <a href="${mailtoHref}">ส่งผ่านแอปอีเมล</a> สำรองได้นะ`;
-          }
-        }
-      })
-      .catch(() => {
-        if (emailStatusBox) {
-          emailStatusBox.hidden = false;
-          emailStatusBox.className = "email-status-box is-info";
-          emailStatusBox.innerHTML =
-            `📌 ปั๊มตั๋วเรียบร้อย! หากต้องการส่งสำรอง กดปุ่มคัดลอกส่งแชท หรือ <a href="${mailtoHref}">ส่งผ่านแอปอีเมลตรงนี้ได้นะ</a>`;
-        }
-      });
   }
 
   if (sendEmailBtn) {
