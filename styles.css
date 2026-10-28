@@ -101,7 +101,8 @@ input {
   transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1), transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.ticket-gate[hidden] {
+.ticket-gate[hidden],
+html.gate-verified .ticket-gate {
   display: none !important;
 }
 
@@ -511,6 +512,10 @@ input {
    ========================================================================== */
 .app-shell.is-locked {
   display: none !important;
+}
+
+html.gate-verified .app-shell.is-locked {
+  display: flex !important;
 }
 
 .app-shell {

@@ -21,6 +21,15 @@
   />
 
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    try {
+      if (!/[?&]lock=1\b/.test(location.search) &&
+          (/(?:^|;\s*)tell_ticket_verified=1\b/.test(document.cookie) ||
+           localStorage.getItem("tell_ticket_verified") === "1")) {
+        document.documentElement.classList.add("gate-verified");
+      }
+    } catch (_) {}
+  </script>
 </head>
 <body>
   <div class="paper-grain" aria-hidden="true"></div>

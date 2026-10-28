@@ -74,11 +74,66 @@
     rawConfig.passcode || [48, 52, 48, 54].map((code) => String.fromCharCode(code)).join("")
   );
   const slotPlaceholders = ["d", "d", "m", "m"];
+  const GATE_COOKIE_NAME = "tell_ticket_verified";
 
-  let isGateUnlocked = !ticketGate;
+  function setGateVerifiedCookie() {
+    try {
+      // Save cookie for 30 days so accidental refreshes never re-prompt
+      document.cookie = `${GATE_COOKIE_NAME}=1; max-age=2592000; path=/; SameSite=Lax`;
+    } catch {}
+    try {
+      localStorage.setItem(GATE_COOKIE_NAME, "1");
+    } catch {}
+  }
+
+  function clearGateVerifiedCookie() {
+    try {
+      document.cookie = `${GATE_COOKIE_NAME}=; max-age=0; path=/; SameSite=Lax`;
+    } catch {}
+    try {
+      localStorage.removeItem(GATE_COOKIE_NAME);
+    } catch {}
+    document.documentElement.classList.remove("gate-verified");
+  }
+
+  function hasGateVerifiedCookie() {
+    try {
+      if (new RegExp(`(?:^|;\\s*)${GATE_COOKIE_NAME}=1\\b`).test(document.cookie)) {
+        return true;
+      }
+    } catch {}
+    try {
+      if (localStorage.getItem(GATE_COOKIE_NAME) === "1") {
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  if (params.get("lock") === "1") {
+    clearGateVerifiedCookie();
+    if (window.history && typeof window.history.replaceState === "function") {
+      const cleanParams = new URLSearchParams(window.location.search);
+      cleanParams.delete("lock");
+      const qs = cleanParams.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+    }
+  }
+
+  const alreadyVerified = hasGateVerifiedCookie();
+  let isGateUnlocked = !ticketGate || alreadyVerified;
   let enteredPin = "";
   let isGateBusy = false;
   let wrongGateTries = 0;
+
+  if (alreadyVerified) {
+    document.documentElement.classList.add("gate-verified");
+    if (ticketGate) ticketGate.hidden = true;
+    if (appShell) {
+      appShell.classList.remove("is-locked");
+      appShell.removeAttribute("aria-hidden");
+    }
+  }
 
   function renderKioskPin() {
     kioskPinBoxes.forEach((box, idx) => {
@@ -184,7 +239,8 @@
       return;
     }
 
-    // Correct Birthday (0406)! Play Ticket Stamp + Scissors Tear-Off + Gate Unlock Animation
+    // Correct Birthday (0406)! Save cookie immediately & play Ticket Tear-Off Animation
+    setGateVerifiedCookie();
     isGateBusy = true;
     if (kioskControls) kioskControls.classList.add("is-hiding");
     if (kioskTicket) {
